@@ -3,7 +3,117 @@
 #include <vector>
 #include <map>
 #include <iostream>
+#include <fstream>
 #include <assert.h>
+
+#include "SDL/SDL.h"
+
+class my_gui
+{
+public:
+  my_gui(void):
+    m_screen(NULL),
+    m_coef(20),
+    m_copper_color(0),
+    m_queue_color(0),
+    m_electron_color(0)
+  {
+    if (SDL_Init(SDL_INIT_VIDEO) != 0)
+      {
+	std::cout << "Unable to initialize SDL: " << SDL_GetError() << std::endl ;
+      }
+  }
+
+  void createWindow(uint32_t p_width,uint32_t p_height)
+  {
+    const SDL_VideoInfo *l_video_info = SDL_GetVideoInfo();
+
+    assert(l_video_info);
+
+#if SDLCOMPILEDVERSION >= SDL_VERSIONNUM(1, 2, 14)
+    std::cout << "Current resolution : " << l_video_info->current_w << "x" << l_video_info->current_h << " with Pixel Format " << ((uint32_t)l_video_info->vfmt->BitsPerPixel) << " bits per pixel" << std::endl ;
+    m_coef = (l_video_info->current_w / p_width < l_video_info->current_h / p_height ? l_video_info->current_w / p_width : l_video_info->current_h / p_height );
+#else
+    m_coef = (1900 / p_width < 1130 / p_height ? 1900 / p_width : 1130 / p_height );
+#endif
+    if(!m_coef) m_coef =1 ;
+    std::cout << "coef = " << m_coef << std::endl ;
+
+
+    p_width = p_width * m_coef;
+    p_height = p_height * m_coef;
+    m_screen = SDL_SetVideoMode(p_width,p_height,32,SDL_SWSURFACE);
+    if(m_screen == NULL)
+      {
+	std::cout << "Unable to set video mode to " << p_width << "*"<< p_height << "*32" << std::endl ;
+	SDL_Quit();
+      }
+    m_copper_color = getColorCode(255,160,0);
+    m_queue_color = getColorCode(0,160,255);
+    m_electron_color = getColorCode(255,255,255);
+  }
+
+  uint32_t getColorCode(uint8_t r,uint8_t g,uint8_t b)
+  {
+    return SDL_MapRGB(m_screen->format,r,g,b);
+  }
+
+  void refresh(void)
+  {
+    SDL_UpdateRect(m_screen,0,0,0,0);
+  }
+
+  void displayCopper(uint32_t p_x,uint32_t p_y)
+  {
+    setPixel(p_x,p_y,m_copper_color);
+  }
+
+  void displayQueue(uint32_t p_x,uint32_t p_y)
+  {
+    setPixel(p_x,p_y,m_queue_color);
+  }
+
+  void displayElectron(uint32_t p_x,uint32_t p_y)
+  {
+    setPixel(p_x,p_y,m_electron_color);
+  }
+
+  ~my_gui(void)
+  {
+    SDL_Quit();
+  }
+private:
+  void setPixel(uint32_t p_x,uint32_t p_y,uint32_t p_color)
+  {
+    if ( SDL_MUSTLOCK(m_screen) )
+      {
+	if ( SDL_LockSurface(m_screen) < 0 )
+	  {
+	    exit(-1);
+	  }
+      }
+    for(uint32_t l_x = p_x * m_coef;l_x < m_coef *(p_x + 1);++l_x)
+      {
+	for(uint32_t l_y = p_y * m_coef;l_y < m_coef *(p_y + 1);++l_y)
+	  {
+	    uint32_t *l_bufp = (uint32_t *)m_screen->pixels + l_y * m_screen->pitch/4 + l_x;
+	    *l_bufp = p_color;
+	  }
+      }
+	  
+    if ( SDL_MUSTLOCK(m_screen) )
+      {
+	SDL_UnlockSurface(m_screen);
+      }
+
+  }
+
+  SDL_Surface *m_screen;
+  uint32_t m_coef;
+  uint32_t m_copper_color;
+  uint32_t m_queue_color;
+  uint32_t m_electron_color;
+};
 
 class cell
 {
@@ -16,7 +126,9 @@ public:
     m_nb_neighbours(0),
     m_nb_electrons_around(0)
   {
+#ifdef DEBUG
     std::cout << "Create cell(" << m_x << "," << m_y << ")" << std::endl ;
+#endif
   }
 
   void add_neighbour(cell * p_cell)
@@ -39,27 +151,47 @@ public:
 
   inline void become_electron(void)
   {
+#ifdef DEBUG
     std::cout << "Cell(" << m_x << "," << m_y << ") set as electron" << std::endl;
+#endif
     assert(m_current_state == COPPER);
     m_current_state = ELECTRON;
   }
 
   inline void become_queue(void)
   {
+#ifdef DEBUG
     std::cout << "Cell(" << m_x << "," << m_y << ") set as queue" << std::endl;
+#endif
     m_current_state = QUEUE;
+  }
+
+  inline void checked(void)
+  {
+    m_to_check = false;
+    m_nb_electrons_around = 0;
   }
 
   inline void become_copper(void)
   {
+#ifdef DEBUG
     std::cout << "Cell(" << m_x << "," << m_y << ") set as copper" << std::endl;
+#endif
     assert(m_current_state = QUEUE);
-    m_to_check = false;
-    m_nb_electrons_around = 0;
     m_current_state = COPPER;
   }
 
 public:
+  inline uint32_t getX(void)const
+  {
+    return m_x;
+  }
+
+  inline uint32_t getY(void)const
+  {
+    return m_y;
+  }
+
   inline bool is_copper(void)const
   {
     return m_current_state==COPPER;
@@ -73,6 +205,9 @@ public:
   
   inline uint32_t get_nb_electron_around(void)const
     {
+#ifdef DEBUG
+      std::cout << "Cell(" << m_x << "," << m_y << ") has " << m_nb_electrons_around << " electrons around "<< std::endl;
+#endif
       return m_nb_electrons_around;
     }
 
@@ -112,6 +247,9 @@ public:
   {
     std::map<std::pair<uint32_t,uint32_t>,cell*> l_bidimensionnal_world;
 
+    uint32_t l_x_max = 0;
+    uint32_t l_y_max = 0;
+
     //Creating copper cells
     std::vector<std::pair<uint32_t,uint32_t> >::const_iterator l_iter = p_copper_cells.begin();
     std::vector<std::pair<uint32_t,uint32_t> >::const_iterator l_iter_end = p_copper_cells.end();
@@ -121,7 +259,19 @@ public:
 	std::map<std::pair<uint32_t,uint32_t>,cell*>::iterator l_bi_iter = l_bidimensionnal_world.find(*l_iter);
 	if(l_bi_iter == l_bidimensionnal_world.end())
 	  {
-	    cell * l_new_cell = new cell(l_iter->first,l_iter->second);
+	    uint32_t l_x = l_iter->first;
+	    uint32_t l_y = l_iter->second;
+
+	    if(l_x_max < l_x)
+	      {
+		l_x_max = l_x;
+	      }
+	    if(l_y_max < l_y)
+	      {
+		l_y_max = l_y;
+	      }
+
+	    cell * l_new_cell = new cell(l_x,l_y);
 	    // Storing cell for later deletion
 	    m_copper_cells[l_cell_index] = l_new_cell;
 	    ++l_cell_index;
@@ -137,6 +287,10 @@ public:
 	++l_iter;
       }
 
+    l_x_max+=2;
+    l_y_max+=2;
+    m_gui.createWindow(l_x_max,l_y_max);
+
     //Determining neighbours
     std::map<std::pair<uint32_t,uint32_t>,cell*>::const_iterator l_iter_cell = l_bidimensionnal_world.begin();
     std::map<std::pair<uint32_t,uint32_t>,cell*>::const_iterator l_iter_cell_end = l_bidimensionnal_world.end();
@@ -144,7 +298,12 @@ public:
       {
 	uint32_t l_x = l_iter_cell->first.first;
 	uint32_t l_y = l_iter_cell->first.second;
+
+	m_gui.displayCopper(l_x,l_y);
+
+#ifdef DEBUG
 	std::cout << "Determining neighbour for cell(" << l_x << "," << l_y << ")" << std::endl ;
+#endif
 	for(int32_t l_index_x = -1; l_index_x < 2; ++l_index_x)
 	  {
 	    for(int32_t l_index_y = -1; l_index_y < 2; ++l_index_y)
@@ -183,7 +342,6 @@ public:
 
 
     // Instantiating electrons
-    // It need to be done after queue instanciation because non queue cells will be add to list of cells to be checked next step
     l_iter = p_electron_cells.begin();
     l_iter_end = p_electron_cells.end();
     while(l_iter != l_iter_end)
@@ -191,7 +349,26 @@ public:
 	std::map<std::pair<uint32_t,uint32_t>,cell*>::iterator l_bi_iter = l_bidimensionnal_world.find(*l_iter);
 	if(l_bi_iter != l_bidimensionnal_world.end())
 	  {
-	    set_electron(l_bi_iter->second);
+	    l_bi_iter->second->become_electron();
+	  }
+	else
+	  {
+	    std::cout << "ERROR : you try to put an electron on coordinate(" << l_iter->first << "," << l_iter->second << ") which is not copper" << std::endl ;
+	    exit(-1);
+	  }
+	++l_iter;
+      }
+
+    // Signaling electrons
+    // It need to be done after electron instanciation because only copper cells will be added to list of cells to be checked next step
+    l_iter = p_electron_cells.begin();
+    l_iter_end = p_electron_cells.end();
+    while(l_iter != l_iter_end)
+      {
+	std::map<std::pair<uint32_t,uint32_t>,cell*>::iterator l_bi_iter = l_bidimensionnal_world.find(*l_iter);
+	if(l_bi_iter != l_bidimensionnal_world.end())
+	  {
+	    signal_electron(l_bi_iter->second);
 	  }
 	else
 	  {
@@ -202,7 +379,7 @@ public:
       }
 
 
-
+    m_gui.refresh();
 
 
   }
@@ -225,9 +402,10 @@ public:
     m_queue_cells[m_queue_current_index] = p_cell;
     ++m_queue_current_index;
     p_cell->become_queue();
+    m_gui.displayQueue(p_cell->getX(),p_cell->getY());
   }
 
-  void set_electron(cell *p_cell)
+  void signal_electron(cell *p_cell)
   {
     uint32_t l_nb_neighbour = p_cell->get_nb_neighbour();
     for(uint32_t l_index =0 ; l_index < l_nb_neighbour; ++l_index)
@@ -245,7 +423,7 @@ public:
       }
     m_electron_cells[m_electron_current_index] = p_cell;
     ++m_electron_current_index;
-    p_cell->become_electron();
+    m_gui.displayElectron(p_cell->getX(),p_cell->getY());
   }
 
   void run(uint32_t p_nb_max)
@@ -255,14 +433,20 @@ public:
     do
       {
 	l_continu = false;
-	//    sleep(1);
 	//display
-	std::cout << "=> step " << l_nb_cycle << std::endl ;
+	/* Computer */ //	if(l_nb_cycle > 38800 || (!(l_nb_cycle % 1000)) )
+	  /* Display */	//	if(! (l_nb_cycle % 100))
+       	  {
+	    m_gui.refresh();
+	    std::cout << "=> step " << l_nb_cycle << std::endl ;
+	     }
 
 	// all queue become copper
 	for(uint32_t l_index = 0 ; l_index < m_queue_current_index; l_index++)
 	  {
 	    m_queue_cells[l_index]->become_copper();
+	    m_gui.displayCopper( m_queue_cells[l_index]->getX(), m_queue_cells[l_index]->getY());
+
 	  }
 
 	// All electron become queues
@@ -270,6 +454,7 @@ public:
 	  {
 	    m_electron_cells[l_index]->become_queue();
 	    l_continu = true;
+	    m_gui.displayQueue( m_electron_cells[l_index]->getX(), m_electron_cells[l_index]->getY());
 	  }
 
 	// Switching electron and queue arrays
@@ -289,20 +474,25 @@ public:
 	    if(l_nb_electron_around > 0 && l_nb_electron_around < 3)
 	      {
 		m_futur_electron_cells[l_futur_electron_current_index] = l_cell;
+		l_cell->become_electron();
 		++l_futur_electron_current_index;
 		l_continu = true;
 	      }
+	    l_cell->checked();
 	    m_to_check_start_index = (1 + m_to_check_start_index) % m_nb_cell;
 	  }
 
 	// All futur electron become electron
 	for(uint32_t l_index = 0 ; l_index < l_futur_electron_current_index; l_index++)
 	  {
-	    set_electron(m_futur_electron_cells[l_index]);
+	    signal_electron(m_futur_electron_cells[l_index]);
 	  }
 	
 	
 	++l_nb_cycle;
+
+
+	//	sleep(1);
       }while(l_continu && l_nb_cycle <= p_nb_max);
     std::cout << "Nothing more to simulate"<< std::endl;
     
@@ -320,16 +510,76 @@ private:
   uint32_t m_to_check_current_index;
   uint32_t m_electron_current_index;
   uint32_t m_queue_current_index;
+  my_gui m_gui;
 };
 
 
-int main(void)
+int main(int argc,char ** argv)
 {
   std::vector<std::pair<uint32_t,uint32_t> > l_copper_cells;
   std::vector<std::pair<uint32_t,uint32_t> > l_queue_cells;
   std::vector<std::pair<uint32_t,uint32_t> > l_electron_cells;
 
+  uint32_t l_nb_cycle = 100;
+  std::string l_file_name;
+  switch(argc)
+    {
+    case 3:
+      l_nb_cycle = atoi(argv[2]);
+    case 2:
+      l_file_name = argv[1];
+      break;
+    default:
+      std::cout << "Usage is main.exe file_name [nb_cycle_max]" << std::endl ;
+      exit(-1);
+    }
+
+  std::ifstream l_input_file(l_file_name.c_str());
+  if(l_input_file==NULL)
+    {
+      std::cout << "ERROR : Unable to open file \"" << l_file_name << "\"" << std::endl ;
+      exit(-1);
+    }
+  std::string l_line;
+  uint32_t l_nb_line = 0;
+  while(!l_input_file.eof())
+    {
+      getline(l_input_file,l_line);
+      if(!l_input_file.eof())
+	{
+	  uint32_t l_size = l_line.length();
+	  for(uint32_t l_index = 0 ; l_index < l_size ; ++l_index)
+	    {
+	      switch(l_line[l_index])
+		{
+		case '.':
+		case ' ':
+		  break;
+		case 'E':
+		  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(l_index,l_nb_line));
+		  l_electron_cells.push_back(std::pair<uint32_t,uint32_t>(l_index,l_nb_line));
+		  break;
+		case 'Q':
+		  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(l_index,l_nb_line));
+		  l_queue_cells.push_back(std::pair<uint32_t,uint32_t>(l_index,l_nb_line));
+		  break;
+		case '#':
+		  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(l_index,l_nb_line));
+		  break;
+		}
+	    }
+	}
+      ++l_nb_line;
+    }
+
+
+  l_input_file.close();
+
 #ifdef CLOCK
+
+#include "../image/wireworld_computer.h"
+  
+
   //Cross
   l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(0,1));
   l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(1,0));
@@ -341,32 +591,62 @@ int main(void)
   //  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(2,1));
 
   // Line
-  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(3,1));
-  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(4,1));
+  for(uint32_t l_x=3;l_x<20;++l_x)
+    {
+      l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(l_x,1));
+    }
  
   l_queue_cells.push_back(std::pair<uint32_t,uint32_t>(0,1));
 
   l_electron_cells.push_back(std::pair<uint32_t,uint32_t>(1,0));
 
 #endif
-  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(0,5));
-  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(1,5));
-  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(2,5));
-  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(3,4));
-  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(4,4));
-  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(3,6));
-  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(4,6));
-  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(3,5));
-  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(5,5));
-  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(6,5));
-  
-  l_queue_cells.push_back(std::pair<uint32_t,uint32_t>(0,5));
 
-  l_electron_cells.push_back(std::pair<uint32_t,uint32_t>(1,5));
+#ifdef TOTO
+  //Horloge
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(30,5));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(31,5));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(32,5));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(32,4));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(33,4));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(34,4));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(34,5));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(34,6));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(34,7));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(33,7));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(32,7));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(32,6));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(35,5));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(36,6));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(36,7));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(36,8));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(35,9));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(35,10));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(34,11));
+
+
+  //End of horloge
+
+
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(0,25));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(1,25));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(2,25));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(3,24));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(4,24));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(3,26));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(4,26));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(3,25));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(5,25));
+  l_copper_cells.push_back(std::pair<uint32_t,uint32_t>(6,25));
+  
+  l_queue_cells.push_back(std::pair<uint32_t,uint32_t>(0,25));
+
+  l_electron_cells.push_back(std::pair<uint32_t,uint32_t>(1,25));
+#endif
 
   
   
   wireworld l_world(l_copper_cells,l_electron_cells,l_queue_cells);
-  l_world.run(10);
+  l_world.run(l_nb_cycle);
   
 }
