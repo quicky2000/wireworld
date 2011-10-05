@@ -1,3 +1,6 @@
+#include "parameter_manager.h"
+
+#include "SDL/SDL.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <vector>
@@ -6,7 +9,88 @@
 #include <fstream>
 #include <assert.h>
 
-#include "SDL/SDL.h"
+class wireworld_configuration
+{
+public:
+  wireworld_configuration(void);
+
+  void set_input_file_name(const std::string & p_name);
+  const std::string & get_input_file_name(void)const;
+  void set_nb_max_cycle(uint32_t p_nb_max_cycle);
+  uint32_t get_nb_max_cycle(void)const;
+  void set_start_cycle(uint32_t p_start_cycle);
+  uint32_t get_start_cycle(void)const;
+  void set_refresh_interval(uint32_t p_refresh_interval);
+  uint32_t get_refresh_interval(void)const;
+  void set_display_duration(uint32_t p_display_duration);
+  uint32_t get_display_duration(void)const;
+private:
+  std::string m_input_file_name;
+  uint32_t m_nb_max_cycle;
+  uint32_t m_start_cycle;
+  uint32_t m_refresh_interval;
+  uint32_t m_display_duration;
+};
+
+wireworld_configuration::wireworld_configuration(void):
+  m_input_file_name("wireworld.txt"),
+  m_nb_max_cycle(1000),
+  m_start_cycle(0),
+  m_refresh_interval(1),
+  m_display_duration(500)
+{
+}
+
+void wireworld_configuration::set_input_file_name(const std::string & p_name)
+{
+  m_input_file_name = p_name;
+}
+
+const std::string & wireworld_configuration::get_input_file_name(void)const
+{
+  return m_input_file_name;
+}
+
+void wireworld_configuration::set_nb_max_cycle(uint32_t p_nb_max_cycle)
+{
+  m_nb_max_cycle = p_nb_max_cycle;
+}
+
+uint32_t wireworld_configuration::get_nb_max_cycle(void)const
+{
+  return m_nb_max_cycle;
+}
+
+void wireworld_configuration::set_start_cycle(uint32_t p_start_cycle)
+{
+  m_start_cycle = p_start_cycle;
+}
+
+uint32_t wireworld_configuration::get_start_cycle(void)const
+{
+  return m_start_cycle;
+}
+
+void wireworld_configuration::set_refresh_interval(uint32_t p_refresh_interval)
+{
+  m_refresh_interval = p_refresh_interval;
+}
+
+uint32_t wireworld_configuration::get_refresh_interval(void)const
+{
+  return m_refresh_interval;
+}
+
+void wireworld_configuration::set_display_duration(uint32_t p_display_duration)
+{
+  m_display_duration = p_display_duration;
+}
+
+uint32_t wireworld_configuration::get_display_duration(void)const
+{
+  return m_display_duration;
+}
+
 
 class my_gui
 {
@@ -29,8 +113,7 @@ public:
     const SDL_VideoInfo *l_video_info = SDL_GetVideoInfo();
 
     assert(l_video_info);
-
-#if SDLCOMPILEDVERSION >= SDL_VERSIONNUM(1, 2, 14)
+#if SDL_COMPILEDVERSION >= SDL_VERSIONNUM(1, 2, 14)
     std::cout << "Current resolution : " << l_video_info->current_w << "x" << l_video_info->current_h << " with Pixel Format " << ((uint32_t)l_video_info->vfmt->BitsPerPixel) << " bits per pixel" << std::endl ;
     m_coef = (l_video_info->current_w / p_width < l_video_info->current_h / p_height ? l_video_info->current_w / p_width : l_video_info->current_h / p_height );
 #else
@@ -232,7 +315,8 @@ class wireworld
 public:
   wireworld(const std::vector<std::pair<uint32_t,uint32_t> > & p_copper_cells,
 	    const std::vector<std::pair<uint32_t,uint32_t> > & p_electron_cells,
-	    const std::vector<std::pair<uint32_t,uint32_t> > & p_queue_cells
+	    const std::vector<std::pair<uint32_t,uint32_t> > & p_queue_cells,
+	    const wireworld_configuration & p_conf
 	    ):
     m_nb_cell(p_copper_cells.size()),
     m_copper_cells(new cell*[m_nb_cell]),
@@ -243,7 +327,8 @@ public:
     m_to_check_start_index(0),
     m_to_check_current_index(0),
     m_electron_current_index(0),
-    m_queue_current_index(0)
+    m_queue_current_index(0),
+    m_conf(p_conf)
   {
     std::map<std::pair<uint32_t,uint32_t>,cell*> l_bidimensionnal_world;
 
@@ -426,8 +511,12 @@ public:
     m_gui.displayElectron(p_cell->getX(),p_cell->getY());
   }
 
-  void run(uint32_t p_nb_max)
+  void run()
   {
+    uint32_t l_nb_max = m_conf.get_nb_max_cycle();
+    uint32_t l_start_cycle = m_conf.get_start_cycle();
+    uint32_t l_refresh_interval = m_conf.get_refresh_interval();
+    uint32_t l_display_duration = m_conf.get_display_duration();
     bool l_continu = false;
     uint32_t l_nb_cycle = 1;
     do
@@ -436,10 +525,13 @@ public:
 	//display
 	/* Computer */ //	if(l_nb_cycle > 38800 || (!(l_nb_cycle % 1000)) )
 	  /* Display */	//	if(! (l_nb_cycle % 100))
+	  /* Display */		
+	if(l_nb_cycle >= l_start_cycle && !(l_nb_cycle % l_refresh_interval))
        	  {
 	    m_gui.refresh();
 	    std::cout << "=> step " << l_nb_cycle << std::endl ;
-	     }
+	    SDL_Delay(l_display_duration);
+	  }
 
 	// all queue become copper
 	for(uint32_t l_index = 0 ; l_index < m_queue_current_index; l_index++)
@@ -492,8 +584,7 @@ public:
 	++l_nb_cycle;
 
 
-	//	sleep(1);
-      }while(l_continu && l_nb_cycle <= p_nb_max);
+      }while(l_continu && l_nb_cycle <= l_nb_max);
     std::cout << "Nothing more to simulate"<< std::endl;
     
     
@@ -511,28 +602,65 @@ private:
   uint32_t m_electron_current_index;
   uint32_t m_queue_current_index;
   my_gui m_gui;
+  wireworld_configuration m_conf;
 };
 
 
 int main(int argc,char ** argv)
 {
+
+  // Defining application command line parameters
+  parameter_manager l_param_manager("wireworld.exe","--",1);
+  parameter_if l_param_file("input_file");
+  parameter_if * l_param_nb_max_cycle = new parameter_if("nb_max_cycle");
+  parameter_if * l_param_start_cycle = new parameter_if("start_cycle",true);
+  parameter_if * l_param_delay = new parameter_if("frame_delay",true);
+  parameter_if * l_param_refresh_interval = new parameter_if("refresh_interval",true);
+  parameter_if * l_param_display_duration = new parameter_if("display_duration",true);
+  l_param_manager.add(&l_param_file);
+  l_param_manager.add(l_param_start_cycle);
+  l_param_manager.add(l_param_nb_max_cycle);
+  l_param_manager.add(l_param_delay);
+  l_param_manager.add(l_param_refresh_interval);
+  l_param_manager.add(l_param_display_duration);
+
+  // Treating parameters
+  l_param_manager.treat_parameters(argc,argv);
+
+  // Defining configuration according to parameters
+  wireworld_configuration l_conf;
+  if(l_param_file.value_set())
+    {
+      l_conf.set_input_file_name(l_param_file.get_value<std::string>());
+    }
+
+  if(l_param_nb_max_cycle->value_set())
+    {
+      l_conf.set_nb_max_cycle(l_param_nb_max_cycle->get_value<uint32_t>());
+    }
+
+  if(l_param_start_cycle->value_set())
+    {
+      l_conf.set_start_cycle(l_param_start_cycle->get_value<uint32_t>());
+    }
+
+  if(l_param_refresh_interval->value_set())
+    {
+      l_conf.set_refresh_interval(l_param_refresh_interval->get_value<uint32_t>());
+    }
+
+  if(l_param_display_duration->value_set())
+    {
+      l_conf.set_display_duration(l_param_display_duration->get_value<uint32_t>());
+    }
+
+  // Preparing data containers
   std::vector<std::pair<uint32_t,uint32_t> > l_copper_cells;
   std::vector<std::pair<uint32_t,uint32_t> > l_queue_cells;
   std::vector<std::pair<uint32_t,uint32_t> > l_electron_cells;
 
-  uint32_t l_nb_cycle = 100;
-  std::string l_file_name;
-  switch(argc)
-    {
-    case 3:
-      l_nb_cycle = atoi(argv[2]);
-    case 2:
-      l_file_name = argv[1];
-      break;
-    default:
-      std::cout << "Usage is main.exe file_name [nb_cycle_max]" << std::endl ;
-      exit(-1);
-    }
+  // Importing datas
+  std::string l_file_name = l_conf.get_input_file_name();
 
   std::ifstream l_input_file(l_file_name.c_str());
   if(l_input_file==NULL)
@@ -645,8 +773,10 @@ int main(int argc,char ** argv)
 #endif
 
   
-  
-  wireworld l_world(l_copper_cells,l_electron_cells,l_queue_cells);
-  l_world.run(l_nb_cycle);
+  //Creating world  
+  wireworld l_world(l_copper_cells,l_electron_cells,l_queue_cells,l_conf);
+
+  // Launching simulation
+  l_world.run();
   
 }

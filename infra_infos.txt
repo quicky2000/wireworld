@@ -1,3 +1,3 @@
-depend:
+depend:parameter_manager
 CFLAGS:
 LDFLAGS:-lSDL
