@@ -11,14 +11,14 @@ int main(int argc,char ** argv)
 {
 
   // Defining application command line parameters
-  parameter_manager l_param_manager("wireworld.exe","--",1);
-  parameter_if l_param_file("input_file");
-  parameter_if * l_param_nb_max_cycle = new parameter_if("nb_max_cycle");
-  parameter_if * l_param_start_cycle = new parameter_if("start_cycle",true);
-  parameter_if * l_param_delay = new parameter_if("frame_delay",true);
-  parameter_if * l_param_refresh_interval = new parameter_if("refresh_interval",true);
-  parameter_if * l_param_display_duration = new parameter_if("display_duration",true);
-  l_param_manager.add(&l_param_file);
+  parameter_manager::parameter_manager l_param_manager("wireworld.exe","--",1);
+  parameter_manager::parameter_if l_param_file("input_file");
+  parameter_manager::parameter_if l_param_nb_max_cycle("nb_max_cycle");
+  parameter_manager::parameter_if l_param_start_cycle("start_cycle",true);
+  parameter_manager::parameter_if l_param_delay("frame_delay",true);
+  parameter_manager::parameter_if l_param_refresh_interval("refresh_interval",true);
+  parameter_manager::parameter_if l_param_display_duration("display_duration",true);
+  l_param_manager.add(l_param_file);
   l_param_manager.add(l_param_start_cycle);
   l_param_manager.add(l_param_nb_max_cycle);
   l_param_manager.add(l_param_delay);
@@ -35,24 +35,24 @@ int main(int argc,char ** argv)
       l_conf.set_input_file_name(l_param_file.get_value<std::string>());
     }
 
-  if(l_param_nb_max_cycle->value_set())
+  if(l_param_nb_max_cycle.value_set())
     {
-      l_conf.set_nb_max_cycle(l_param_nb_max_cycle->get_value<uint32_t>());
+      l_conf.set_nb_max_cycle(l_param_nb_max_cycle.get_value<uint32_t>());
     }
 
-  if(l_param_start_cycle->value_set())
+  if(l_param_start_cycle.value_set())
     {
-      l_conf.set_start_cycle(l_param_start_cycle->get_value<uint32_t>());
+      l_conf.set_start_cycle(l_param_start_cycle.get_value<uint32_t>());
     }
 
-  if(l_param_refresh_interval->value_set())
+  if(l_param_refresh_interval.value_set())
     {
-      l_conf.set_refresh_interval(l_param_refresh_interval->get_value<uint32_t>());
+      l_conf.set_refresh_interval(l_param_refresh_interval.get_value<uint32_t>());
     }
 
-  if(l_param_display_duration->value_set())
+  if(l_param_display_duration.value_set())
     {
-      l_conf.set_display_duration(l_param_display_duration->get_value<uint32_t>());
+      l_conf.set_display_duration(l_param_display_duration.get_value<uint32_t>());
     }
 
   // Preparing data containers
@@ -179,5 +179,5 @@ int main(int argc,char ** argv)
 
   // Launching simulation
   l_world.run();
-  
+
 }
