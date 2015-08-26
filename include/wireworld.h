@@ -20,12 +20,14 @@
 
 #include "wireworld_configuration.h"
 #include "wireworld_gui.h"
-#include <stdint.h>
+#include "signal_handler.h"
+#include "signal_handler_listener_if.h"
+#include <cinttypes>
 #include <vector>
 
 class cell;
 
-class wireworld
+class wireworld: public quicky_utils::signal_handler_listener_if
 {
 public:
   wireworld(const std::vector<std::pair<uint32_t,uint32_t> > & p_copper_cells,
@@ -40,6 +42,10 @@ public:
   void signal_electron(cell *p_cell);
   void run(void);
 
+  // Methods inherited from signal handler
+  inline void handle(int p_signal);
+  // End of methods inherited from signal handler
+
 private:
   uint32_t m_nb_cell;
   cell** m_copper_cells;
@@ -53,6 +59,14 @@ private:
   uint32_t m_queue_current_index;
   wireworld_gui m_gui;
   wireworld_configuration m_conf;
+  bool m_stop;
+  quicky_utils::signal_handler m_signal_handler;
 };
+
+//------------------------------------------------------------------------------
+void wireworld::handle(int p_signal)
+{
+  m_stop = true;
+}
 
 #endif /* _WIREWORLD_H_ */

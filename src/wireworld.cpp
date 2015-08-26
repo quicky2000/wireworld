@@ -35,7 +35,9 @@ wireworld::wireworld(const std::vector<std::pair<uint32_t,uint32_t> > & p_copper
   m_to_check_current_index(0),
   m_electron_current_index(0),
   m_queue_current_index(0),
-  m_conf(p_conf)
+  m_conf(p_conf),
+  m_stop(false),
+  m_signal_handler(*this)
 {
   std::map<std::pair<uint32_t,uint32_t>,cell*> l_bidimensionnal_world;
 
@@ -295,7 +297,7 @@ void wireworld::run(void)
       ++l_nb_cycle;
 
 
-    }while(l_continu && l_nb_cycle <= l_nb_max);
+    }while(l_continu && l_nb_cycle <= l_nb_max && !m_stop);
   std::cout << "Nothing more to simulate"<< std::endl;
     
     
