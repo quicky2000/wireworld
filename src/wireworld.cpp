@@ -25,7 +25,11 @@ namespace wireworld
   wireworld::wireworld(const wireworld_common::wireworld_types::t_cell_list & p_copper_cells,
 		       const wireworld_common::wireworld_types::t_cell_list & p_electron_cells,
 		       const wireworld_common::wireworld_types::t_cell_list & p_queue_cells,
-		       const wireworld_common::wireworld_configuration & p_conf
+		       const wireworld_common::wireworld_configuration & p_conf,
+		       const uint32_t & p_x_max,
+		       const uint32_t & p_y_max,
+		       const wireworld_common::wireworld_types::t_cell_list & p_inactive_cells,
+		       const wireworld_common::wireworld_types::t_neighbours & p_neighbours
 		       ):
     m_nb_cell(p_copper_cells.size()),
     m_copper_cells(new cell*[m_nb_cell]),
@@ -41,10 +45,8 @@ namespace wireworld
     m_stop(false),
     m_signal_handler(*this)
   {
+    std::cout << "Number of active cells in design : " << p_copper_cells.size() << std::endl ;
     std::map<wireworld_common::wireworld_types::t_coordinates,cell*> l_bidimensionnal_world;
-
-    uint32_t l_x_max = 0;
-    uint32_t l_y_max = 0;
 
     //Creating copper cells
     uint32_t l_cell_index = 0;
@@ -55,16 +57,6 @@ namespace wireworld
 	  {
 	    uint32_t l_x = l_iter.first;
 	    uint32_t l_y = l_iter.second;
-
-	    if(l_x_max < l_x)
-	      {
-		l_x_max = l_x;
-	      }
-	    if(l_y_max < l_y)
-	      {
-		l_y_max = l_y;
-	      }
-
 	    cell * l_new_cell = new cell(l_x,l_y);
 	    // Storing cell for later deletion
 	    m_copper_cells[l_cell_index] = l_new_cell;
@@ -79,9 +71,12 @@ namespace wireworld
 	  }
       }
 
-    l_x_max+=2;
-    l_y_max+=2;
-    m_gui.createWindow(l_x_max,l_y_max);
+    m_gui.createWindow(p_x_max + 2,p_y_max + 2);
+
+    for(auto l_iter: p_inactive_cells)
+      {
+	m_gui.displayCopper(l_iter.first,l_iter.second);
+      }
 
     //Determining neighbours
     for(auto l_iter_cell: l_bidimensionnal_world)
@@ -94,19 +89,27 @@ namespace wireworld
 #ifdef DEBUG
 	std::cout << "Determining neighbour for cell(" << l_x << "," << l_y << ")" << std::endl ;
 #endif
-	for(int32_t l_index_x = -1; l_index_x < 2; ++l_index_x)
+	wireworld_common::wireworld_types::t_neighbours::const_iterator l_neighbours_iter = p_neighbours.find(wireworld_common::wireworld_types::t_coordinates(l_x,l_y));
+	if(p_neighbours.end() == l_neighbours_iter)
 	  {
-	    for(int32_t l_index_y = -1; l_index_y < 2; ++l_index_y)
+	    std::stringstream l_x_str;
+	    l_x_str << l_x;
+	    std::stringstream l_y_str;
+	    l_y_str << l_y;
+	    throw quicky_exception::quicky_logic_exception("No neighbour information for cell(" + l_x_str.str() +"," + l_y_str.str() +")",__LINE__,__FILE__);
+	  }
+	for(auto l_neighbour_coord_iter: l_neighbours_iter->second)
+	  {
+	    std::map<wireworld_common::wireworld_types::t_coordinates,cell*>::const_iterator l_iter_neighbour = l_bidimensionnal_world.find(l_neighbour_coord_iter);
+	    if(l_bidimensionnal_world.end() == l_iter_neighbour)
 	      {
-		if(l_index_x || l_index_y)
-		  {
-		    std::map<wireworld_common::wireworld_types::t_coordinates,cell*>::const_iterator l_iter_neighbour = l_bidimensionnal_world.find(wireworld_common::wireworld_types::t_coordinates(l_x + l_index_x , l_y + l_index_y));
-		    if(l_iter_neighbour != l_bidimensionnal_world.end())
-		      {
-			l_iter_cell.second->add_neighbour(l_iter_neighbour->second);
-		      }
-		  }
+		std::stringstream l_x_str;
+		l_x_str << l_neighbour_coord_iter.first;
+		std::stringstream l_y_str;
+		l_y_str << l_neighbour_coord_iter.second;
+		throw quicky_exception::quicky_logic_exception("No cell at coordinates(" + l_x_str.str() +"," + l_y_str.str() +")",__LINE__,__FILE__);
 	      }
+	    l_iter_cell.second->add_neighbour(l_iter_neighbour->second);
 	  }
       }
 
@@ -121,8 +124,9 @@ namespace wireworld
 	  }
 	else
 	  {
-	    std::cout << "ERROR : you try to put a queue on coordinate(" << l_iter.first << "," << l_iter.second << ") which is not copper" << std::endl ;
-	    exit(-1);
+	    std::stringstream l_error_msg;
+	    l_error_msg << "You try to put a queue on coordinate(" << l_iter.first << "," << l_iter.second << ") which is not copper" << std::endl ;
+	    throw quicky_exception::quicky_logic_exception(l_error_msg.str(),__LINE__,__FILE__);
 	  }
       }
 
@@ -137,8 +141,9 @@ namespace wireworld
 	  }
 	else
 	  {
-	    std::cout << "ERROR : you try to put an electron on coordinate(" << l_iter.first << "," << l_iter.second << ") which is not copper" << std::endl ;
-	    exit(-1);
+	    std::stringstream l_error_msg;
+	    l_error_msg << "You try to put an electron on coordinate(" << l_iter.first << "," << l_iter.second << ") which is not copper" << std::endl ;
+	    throw quicky_exception::quicky_logic_exception(l_error_msg.str(),__LINE__,__FILE__);
 	  }
       }
 
@@ -153,8 +158,9 @@ namespace wireworld
 	  }
 	else
 	  {
-	    std::cout << "ERROR : you try to put an electron on coordinate(" << l_iter.first << "," << l_iter.second << ") which is not copper" << std::endl ;
-	    exit(-1);
+	    std::stringstream l_error_msg;
+	    l_error_msg << "You try to put an electron on coordinate(" << l_iter.first << "," << l_iter.second << ") which is not copper" << std::endl ;
+	    throw quicky_exception::quicky_logic_exception(l_error_msg.str(),__LINE__,__FILE__);
 	  }
       }
 

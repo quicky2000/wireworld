@@ -35,7 +35,11 @@ namespace wireworld
     wireworld(const wireworld_common::wireworld_types::t_cell_list & p_copper_cells,
 	      const wireworld_common::wireworld_types::t_cell_list & p_electron_cells,
 	      const wireworld_common::wireworld_types::t_cell_list & p_queue_cells,
-	      const wireworld_common::wireworld_configuration & p_conf
+	      const wireworld_common::wireworld_configuration & p_conf,
+	      const uint32_t & p_x_max,
+	      const uint32_t & p_y_max,
+	      const wireworld_common::wireworld_types::t_cell_list & p_inactive_cells,
+	      const wireworld_common::wireworld_types::t_neighbours & p_neighbours
 	      );
 
     ~wireworld(void);
