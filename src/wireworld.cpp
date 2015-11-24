@@ -22,9 +22,9 @@
 namespace wireworld
 {
   //------------------------------------------------------------------------------
-  wireworld::wireworld(const std::vector<wireworld_common::wireworld_types::t_coordinates > & p_copper_cells,
-		       const std::vector<wireworld_common::wireworld_types::t_coordinates > & p_electron_cells,
-		       const std::vector<wireworld_common::wireworld_types::t_coordinates > & p_queue_cells,
+  wireworld::wireworld(const wireworld_common::wireworld_types::t_cell_list & p_copper_cells,
+		       const wireworld_common::wireworld_types::t_cell_list & p_electron_cells,
+		       const wireworld_common::wireworld_types::t_cell_list & p_queue_cells,
 		       const wireworld_common::wireworld_configuration & p_conf
 		       ):
     m_nb_cell(p_copper_cells.size()),
@@ -47,16 +47,14 @@ namespace wireworld
     uint32_t l_y_max = 0;
 
     //Creating copper cells
-    std::vector<wireworld_common::wireworld_types::t_coordinates >::const_iterator l_iter = p_copper_cells.begin();
-    std::vector<wireworld_common::wireworld_types::t_coordinates >::const_iterator l_iter_end = p_copper_cells.end();
     uint32_t l_cell_index = 0;
-    while(l_iter != l_iter_end)
+    for(auto l_iter:p_copper_cells)
       {
-	std::map<wireworld_common::wireworld_types::t_coordinates,cell*>::iterator l_bi_iter = l_bidimensionnal_world.find(*l_iter);
+	std::map<wireworld_common::wireworld_types::t_coordinates,cell*>::iterator l_bi_iter = l_bidimensionnal_world.find(l_iter);
 	if(l_bi_iter == l_bidimensionnal_world.end())
 	  {
-	    uint32_t l_x = l_iter->first;
-	    uint32_t l_y = l_iter->second;
+	    uint32_t l_x = l_iter.first;
+	    uint32_t l_y = l_iter.second;
 
 	    if(l_x_max < l_x)
 	      {
@@ -73,14 +71,12 @@ namespace wireworld
 	    ++l_cell_index;
 
 	    // Storing cell in virtual bidimensionnal world
-	    l_bidimensionnal_world.insert(std::map<wireworld_common::wireworld_types::t_coordinates,cell*>::value_type(*l_iter,l_new_cell));
+	    l_bidimensionnal_world.insert(std::map<wireworld_common::wireworld_types::t_coordinates,cell*>::value_type(l_iter,l_new_cell));
 	  }
 	else
 	  {
-	    std::cout << "WARNING : a cell still exists at (" << l_iter->first << "," << l_iter->second << ") : skipping this one" << std::endl ;
+	    std::cout << "WARNING : a cell still exists at (" << l_iter.first << "," << l_iter.second << ") : skipping this one" << std::endl ;
 	  }
-	
-	++l_iter;
       }
 
     l_x_max+=2;
@@ -88,12 +84,10 @@ namespace wireworld
     m_gui.createWindow(l_x_max,l_y_max);
 
     //Determining neighbours
-    std::map<wireworld_common::wireworld_types::t_coordinates,cell*>::const_iterator l_iter_cell = l_bidimensionnal_world.begin();
-    std::map<wireworld_common::wireworld_types::t_coordinates,cell*>::const_iterator l_iter_cell_end = l_bidimensionnal_world.end();
-    while(l_iter_cell != l_iter_cell_end)
+    for(auto l_iter_cell: l_bidimensionnal_world)
       {
-	uint32_t l_x = l_iter_cell->first.first;
-	uint32_t l_y = l_iter_cell->first.second;
+	uint32_t l_x = l_iter_cell.first.first;
+	uint32_t l_y = l_iter_cell.first.second;
 
 	m_gui.displayCopper(l_x,l_y);
 
@@ -109,69 +103,59 @@ namespace wireworld
 		    std::map<wireworld_common::wireworld_types::t_coordinates,cell*>::const_iterator l_iter_neighbour = l_bidimensionnal_world.find(wireworld_common::wireworld_types::t_coordinates(l_x + l_index_x , l_y + l_index_y));
 		    if(l_iter_neighbour != l_bidimensionnal_world.end())
 		      {
-			l_iter_cell->second->add_neighbour(l_iter_neighbour->second);
+			l_iter_cell.second->add_neighbour(l_iter_neighbour->second);
 		      }
 		  }
 	      }
 	  }
-	++l_iter_cell;
       }
 
     //Instantiating queues
     // It need to be done before electron instaciation because only non queue cellules will need to be checked for the next step
-    l_iter = p_queue_cells.begin();
-    l_iter_end = p_queue_cells.end();
-    while(l_iter != l_iter_end)
+    for(auto l_iter:p_queue_cells)
       {
-	std::map<wireworld_common::wireworld_types::t_coordinates,cell*>::iterator l_bi_iter = l_bidimensionnal_world.find(*l_iter);
+	std::map<wireworld_common::wireworld_types::t_coordinates,cell*>::iterator l_bi_iter = l_bidimensionnal_world.find(l_iter);
 	if(l_bi_iter != l_bidimensionnal_world.end())
 	  {
 	    set_queue(l_bi_iter->second);
 	  }
 	else
 	  {
-	    std::cout << "ERROR : you try to put a queue on coordinate(" << l_iter->first << "," << l_iter->second << ") which is not copper" << std::endl ;
+	    std::cout << "ERROR : you try to put a queue on coordinate(" << l_iter.first << "," << l_iter.second << ") which is not copper" << std::endl ;
 	    exit(-1);
 	  }
-	++l_iter;
       }
 
 
     // Instantiating electrons
-    l_iter = p_electron_cells.begin();
-    l_iter_end = p_electron_cells.end();
-    while(l_iter != l_iter_end)
+    for(auto l_iter:p_electron_cells)
       {
-	std::map<wireworld_common::wireworld_types::t_coordinates,cell*>::iterator l_bi_iter = l_bidimensionnal_world.find(*l_iter);
+	std::map<wireworld_common::wireworld_types::t_coordinates,cell*>::iterator l_bi_iter = l_bidimensionnal_world.find(l_iter);
 	if(l_bi_iter != l_bidimensionnal_world.end())
 	  {
 	    l_bi_iter->second->become_electron();
 	  }
 	else
 	  {
-	    std::cout << "ERROR : you try to put an electron on coordinate(" << l_iter->first << "," << l_iter->second << ") which is not copper" << std::endl ;
+	    std::cout << "ERROR : you try to put an electron on coordinate(" << l_iter.first << "," << l_iter.second << ") which is not copper" << std::endl ;
 	    exit(-1);
 	  }
-	++l_iter;
       }
 
     // Signaling electrons
     // It need to be done after electron instanciation because only copper cells will be added to list of cells to be checked next step
-    l_iter = p_electron_cells.begin();
-    l_iter_end = p_electron_cells.end();
-    while(l_iter != l_iter_end)
+    for(auto l_iter: p_electron_cells)
       {
-	std::map<wireworld_common::wireworld_types::t_coordinates,cell*>::iterator l_bi_iter = l_bidimensionnal_world.find(*l_iter);
+	std::map<wireworld_common::wireworld_types::t_coordinates,cell*>::iterator l_bi_iter = l_bidimensionnal_world.find(l_iter);
 	if(l_bi_iter != l_bidimensionnal_world.end())
 	  {
 	    signal_electron(l_bi_iter->second);
 	  }
 	else
 	  {
-	    std::cout << "ERROR : you try to put an electron on coordinate(" << l_iter->first << "," << l_iter->second << ") which is not copper" << std::endl ;
+	    std::cout << "ERROR : you try to put an electron on coordinate(" << l_iter.first << "," << l_iter.second << ") which is not copper" << std::endl ;
 	    exit(-1);
 	  }
-	++l_iter;
       }
 
 

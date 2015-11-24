@@ -32,9 +32,9 @@ namespace wireworld
   class wireworld: public quicky_utils::signal_handler_listener_if
   {
   public:
-    wireworld(const std::vector<wireworld_common::wireworld_types::t_coordinates > & p_copper_cells,
-	      const std::vector<wireworld_common::wireworld_types::t_coordinates > & p_electron_cells,
-	      const std::vector<wireworld_common::wireworld_types::t_coordinates > & p_queue_cells,
+    wireworld(const wireworld_common::wireworld_types::t_cell_list & p_copper_cells,
+	      const wireworld_common::wireworld_types::t_cell_list & p_electron_cells,
+	      const wireworld_common::wireworld_types::t_cell_list & p_queue_cells,
 	      const wireworld_common::wireworld_configuration & p_conf
 	      );
 
