@@ -26,9 +26,9 @@ int main(int argc,char ** argv)
   wireworld_common::wireworld_configuration l_config;
   wireworld_common::wireworld_parameters::configure(argc,argv,l_config);
 
-  std::vector<wireworld_common::wireworld_types::t_coordinates > l_copper_cells;
-  std::vector<wireworld_common::wireworld_types::t_coordinates > l_queue_cells;
-  std::vector<wireworld_common::wireworld_types::t_coordinates > l_electron_cells;
+  wireworld_common::wireworld_types::t_cell_list l_copper_cells;
+  wireworld_common::wireworld_types::t_cell_list l_queue_cells;
+  wireworld_common::wireworld_types::t_cell_list l_electron_cells;
 
   wireworld_common::wireworld_parser::parse(l_config.get_input_file_name(),l_copper_cells,l_queue_cells,l_electron_cells);
 
