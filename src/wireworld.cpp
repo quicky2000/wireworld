@@ -234,7 +234,7 @@ namespace wireworld
 	if(l_nb_cycle >= l_start_cycle && !(l_nb_cycle % l_refresh_interval))
 	  {
 	    m_gui.refresh();
-	    std::cout << "=> step " << l_nb_cycle << std::endl ;
+	    std::cout << "\r=> step " << l_nb_cycle ;
 	    SDL_Delay(l_display_duration);
 	  }
 
